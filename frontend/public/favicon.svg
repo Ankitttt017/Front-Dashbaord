@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="64" height="64">
+  <path d="M50 5L93.3013 30V80L50 105L6.69873 80V30L50 5Z" fill="#58a6ff26" stroke="#58a6ff" stroke-width="4" />
+  <text x="50" y="60" font-family="Inter, Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#58a6ff" text-anchor="middle">TR</text>
+</svg>

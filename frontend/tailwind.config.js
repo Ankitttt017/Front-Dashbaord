@@ -1,0 +1,50 @@
+export default {
+  content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
+  theme: {
+    extend: {
+      fontFamily: {
+        rajdhani: ['Rajdhani', 'sans-serif'],
+        mono: ['JetBrains Mono', 'monospace'],
+        inter: ['Inter', 'sans-serif'],
+      },
+      colors: {
+        sidebar: '#000000',
+        primary: 'var(--primary)',
+        accent: 'var(--accent)',
+        danger: 'var(--danger)',
+        ok: 'var(--ok)',
+        pass: 'var(--ok)',
+        ng: 'var(--ng)',
+        fail: 'var(--ng)',
+        warn: 'var(--warn)',
+        surface: 'var(--surface)',
+        card: 'var(--card)',
+        border: 'var(--border)',
+        'border-light': 'var(--border-light)',
+        bg: 'var(--bg)',
+        text: 'var(--text)',
+        'text-main': 'var(--text-main)',
+        'text-muted': 'var(--text-muted)',
+        bmw: {
+          black: '#000000',
+          blue: '#1C69D4',
+          green: '#00A550',
+          red: '#E3000F',
+          card: '#1A1A1A',
+          text: '#FFFFFF',
+          border: '#333333',
+        },
+      },
+      animation: {
+        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'fade-in': 'fadeIn 0.3s ease-out',
+        'slide-up': 'slideUp 0.3s ease-out',
+      },
+      keyframes: {
+        fadeIn: { from: { opacity: 0 }, to: { opacity: 1 } },
+        slideUp: { from: { opacity: 0, transform: 'translateY(12px)' }, to: { opacity: 1, transform: 'translateY(0)' } },
+      },
+    },
+  },
+  plugins: [],
+};

@@ -1,0 +1,21 @@
+{
+  "exact_columns": [
+    "id",
+    "boxId",
+    "boxNumber",
+    "slotNo",
+    "partId",
+    "qrCode",
+    "packedAt",
+    "createdAt",
+    "updatedAt",
+    "Marking",
+    "Box_ID",
+    "Box_Number",
+    "Slot_No",
+    "Part_ID",
+    "Barcode",
+    "Packed_At"
+  ],
+  "table_name": "PackingItem"
+}

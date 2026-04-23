@@ -1,0 +1,19 @@
+# Environment files
+.env
+.env.*
+backend/.env
+frontend/.env
+backend/dbcofig/.env
+
+# Node dependencies and builds
+backend/node_modules
+frontend/node_modules
+backend/coverage
+frontend/dist
+frontend/dist-ssr
+frontend/coverage
+
+# Logs and local artifacts
+*.log
+.DS_Store
+Thumbs.db
