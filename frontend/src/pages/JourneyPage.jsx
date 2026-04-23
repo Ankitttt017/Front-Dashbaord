@@ -10,19 +10,19 @@ import ShiftBadge from '../components/ShiftBadge';
 import { getJourney } from '../api';
 import {
   GROUPED_STATION_COLUMNS,
-  STATION_MAP,
-  VISIBLE_STATION_KEYS,
 } from '../constants/stationMap';
+import { MACHINE_OPERATION_CARDS } from '../constants/machineOperations';
 import { VARIANT_OPTIONS } from '../constants/variants';
 
 /* ─────────────────────────────────────────────
    Station flow
    ───────────────────────────────────────────── */
-const STATION_FLOW = VISIBLE_STATION_KEYS.map((key, index) => ({
-  key,
-  label: STATION_MAP[key] || key,
+const STATION_FLOW = MACHINE_OPERATION_CARDS.map((operation, index) => ({
+  key: operation.id,
+  label: operation.title,
   order: index + 1,
-  details: GROUPED_STATION_COLUMNS[key] || [{ key, label: 'Status' }],
+  sources: operation.sources || [operation.id],
+  details: GROUPED_STATION_COLUMNS[operation.id] || [{ key: operation.id, label: 'Status' }],
 }));
 
 const RANGE_OPTIONS = [
@@ -116,7 +116,12 @@ const getActiveSubStations = (stationData, detailGroups) => {
 const getOperationMeta = (label) => {
   const text  = String(label || '').trim();
   const match = text.match(/^(OP[0-9/]+)\s*-\s*(.+)$/i);
-  if (!match) return { operationNo: '--', machineName: text || '--' };
+  if (!match) {
+    if (/^OP[0-9A-Z/\s]+$/i.test(text)) {
+      return { operationNo: text.toUpperCase(), machineName: 'Machine Status' };
+    }
+    return { operationNo: '--', machineName: text || '--' };
+  }
   return { operationNo: match[1].toUpperCase(), machineName: match[2].trim() };
 };
 
@@ -171,25 +176,55 @@ const formatJourneyDetail = (key, value) => {
   }
   return r;
 };
+const getResolvedStationData = (part, station) => {
+  const directStation = part?.stations?.[station.key];
+  if (directStation) return directStation;
+
+  const raw = part?.raw || {};
+  const sourceKey = (station.sources || []).find((key) => {
+    const value = raw[key];
+    return value !== null && value !== undefined && String(value).trim() !== '';
+  }) || station.key;
+  const status = raw[sourceKey] ?? 'PENDING';
+  const next = {
+    status,
+    [station.key]: status,
+  };
+
+  station.details.forEach((detail) => {
+    if (detail.key === station.key) return;
+    next[detail.key] = raw[detail.key] ?? '--';
+  });
+
+  return next;
+};
+const hasResolvedStationData = (part, station) => {
+  if (part?.stations?.[station.key]) return true;
+  const raw = part?.raw || {};
+  return (station.sources || []).some((key) => {
+    const value = raw[key];
+    return value !== null && value !== undefined && String(value).trim() !== '';
+  });
+};
 const createStationFallback = (station) => {
   const next = { status:'PENDING' };
   station.details.forEach((d) => { next[d.key] = d.key===station.key ? 'PENDING' : '--'; });
   return next;
 };
 const getStationSummary = (station, part) => {
-  const stationData = part?.stations?.[station.key] || createStationFallback(station);
+  const stationData = getResolvedStationData(part, station) || createStationFallback(station);
   const baseValue   = stationData[station.key] ?? stationData.status;
   const normalized  = normalizeResult(getStationStatus(stationData));
   return { ...station, stationData, rawStatus: baseValue, normalizedStatus: normalized };
 };
 const getPartOverallStatus = (part) => {
-  const ss = STATION_FLOW.map((st) => normalizeResult(getStationStatus(part.stations?.[st.key]||{})));
+  const ss = STATION_FLOW.map((st) => normalizeResult(getStationStatus(getResolvedStationData(part, st))));
   if (ss.includes('NG')) return 'NG';
   if (ss.every((s) => s==='OK')) return 'OK';
   return 'PENDING';
 };
 const getPartProgress = (part) => {
-  const ss = STATION_FLOW.map((st) => normalizeResult(getStationStatus(part.stations?.[st.key]||{})));
+  const ss = STATION_FLOW.map((st) => normalizeResult(getStationStatus(getResolvedStationData(part, st))));
   const passedCount     = ss.filter((s) => s==='OK').length;
   const failedCount     = ss.filter((s) => s==='NG').length;
   const inProgressCount = ss.filter((s) => !['OK','NG'].includes(s)).length;
@@ -615,7 +650,7 @@ const JourneyModal = ({ part, onClose, onPrev, onNext, hasPrev, hasNext }) => {
 const PartCard = ({ part, onClick }) => {
   const overall     = getPartOverallStatus(part);
   const progress    = getPartProgress(part);
-  const nextStation = STATION_FLOW.find((st) => normalizeResult(getStationStatus(part.stations?.[st.key]||{})) !== 'OK');
+  const nextStation = STATION_FLOW.find((st) => normalizeResult(getStationStatus(getResolvedStationData(part, st))) !== 'OK');
 
   return (
     <button type="button" onClick={onClick} style={{all:'unset',display:'block',width:'100%',boxSizing:'border-box',cursor:'pointer'}}>
@@ -681,13 +716,16 @@ const JourneyPage = () => {
       const endOk     = !filters.endDate  ||!partDate||Number.isNaN(partDate.getTime())||partDate<=new Date(`${filters.endDate}T23:59:59`);
       const variantOk = filters.variant==='ALL'||part.variant===filters.variant;
       const shiftOk   = filters.shift==='ALL'||part.shift===filters.shift;
-      const stationOk = filters.station==='ALL'||part.stations?.[filters.station];
+      const stationConfig = STATION_FLOW.find((st) => st.key === filters.station);
+      const stationOk = filters.station==='ALL'||Boolean(stationConfig && hasResolvedStationData(part, stationConfig));
       const statusOk  = (() => {
         if (filters.stationStatus==='ALL') return true;
         const target = filters.stationStatus;
         if (filters.station==='ALL')
-          return STATION_FLOW.some((st) => getJourneyStatusLabel(getStationStatus(part.stations?.[st.key]||{}))=== target);
-        return getJourneyStatusLabel(getStationStatus(part.stations?.[filters.station]||{}))=== target;
+          return STATION_FLOW.some((st) => getJourneyStatusLabel(getStationStatus(getResolvedStationData(part, st)))=== target);
+        return stationConfig
+          ? getJourneyStatusLabel(getStationStatus(getResolvedStationData(part, stationConfig)))=== target
+          : false;
       })();
       return queryMatch&&startOk&&endOk&&variantOk&&shiftOk&&stationOk&&statusOk;
     }),
@@ -885,7 +923,7 @@ const JourneyPage = () => {
                   {filters.query && <span style={{display:'inline-flex',alignItems:'center',gap:'4px',fontSize:'10px',fontWeight:700,padding:'2px 9px',borderRadius:'999px',background:'rgba(28,105,212,0.10)',border:'1.5px solid rgba(28,105,212,0.30)',color:'#1c69d4'}}>ID: {filters.query}<button type="button" onClick={()=>updateFilter('query','')} style={{all:'unset',cursor:'pointer',lineHeight:1}}><X size={9}/></button></span>}
                   {filters.variant!=='ALL' && <span style={{display:'inline-flex',alignItems:'center',gap:'4px',fontSize:'10px',fontWeight:700,padding:'2px 9px',borderRadius:'999px',background:'rgba(109,40,217,0.10)',border:'1.5px solid rgba(109,40,217,0.30)',color:'#6d28d9'}}>Variant: {filters.variant}<button type="button" onClick={()=>updateFilter('variant','ALL')} style={{all:'unset',cursor:'pointer',lineHeight:1}}><X size={9}/></button></span>}
                   {filters.shift!=='ALL' && <span style={{display:'inline-flex',alignItems:'center',gap:'4px',fontSize:'10px',fontWeight:700,padding:'2px 9px',borderRadius:'999px',background:'rgba(13,148,136,0.10)',border:'1.5px solid rgba(13,148,136,0.30)',color:'#0d9488'}}>Shift: {filters.shift}<button type="button" onClick={()=>updateFilter('shift','ALL')} style={{all:'unset',cursor:'pointer',lineHeight:1}}><X size={9}/></button></span>}
-                  {filters.station!=='ALL' && <span style={{display:'inline-flex',alignItems:'center',gap:'4px',fontSize:'10px',fontWeight:700,padding:'2px 9px',borderRadius:'999px',background:'rgba(180,83,9,0.10)',border:'1.5px solid rgba(180,83,9,0.30)',color:'#b45309'}}>Station: {STATION_MAP[filters.station]||filters.station}<button type="button" onClick={()=>updateFilter('station','ALL')} style={{all:'unset',cursor:'pointer',lineHeight:1}}><X size={9}/></button></span>}
+                  {filters.station!=='ALL' && <span style={{display:'inline-flex',alignItems:'center',gap:'4px',fontSize:'10px',fontWeight:700,padding:'2px 9px',borderRadius:'999px',background:'rgba(180,83,9,0.10)',border:'1.5px solid rgba(180,83,9,0.30)',color:'#b45309'}}>Station: {(STATION_FLOW.find((st)=>st.key===filters.station)?.label)||filters.station}<button type="button" onClick={()=>updateFilter('station','ALL')} style={{all:'unset',cursor:'pointer',lineHeight:1}}><X size={9}/></button></span>}
                   {filters.stationStatus!=='ALL' && <span style={{display:'inline-flex',alignItems:'center',gap:'4px',fontSize:'10px',fontWeight:700,padding:'2px 9px',borderRadius:'999px',background:'rgba(190,24,93,0.10)',border:'1.5px solid rgba(190,24,93,0.30)',color:'#be185d'}}>Status: {getJourneyStatusFilterLabel(filters.stationStatus)}<button type="button" onClick={()=>updateFilter('stationStatus','ALL')} style={{all:'unset',cursor:'pointer',lineHeight:1}}><X size={9}/></button></span>}
                   <button type="button" onClick={()=>setFilters(f=>({...f,query:'',variant:'ALL',shift:'ALL',station:'ALL',stationStatus:'ALL'}))} style={{display:'inline-flex',alignItems:'center',gap:'3px',fontSize:'9px',fontWeight:700,padding:'2px 9px',borderRadius:'999px',background:'rgba(0,0,0,0.05)',border:'1px solid rgba(0,0,0,0.12)',color:'#6b7280',cursor:'pointer'}}><X size={8}/>Clear all</button>
                 </div>

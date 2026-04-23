@@ -6,7 +6,7 @@ const STATION_LABELS = {
   Station_30_Result: 'OP30 - FETLING',
   Station_31_Result: 'OP40 - HEAT TREATMENT',
   Station_32_Result: 'OP50 - PDI',
-  Station_100_Result: 'OP60 - OP 60',
+  Station_100_Result: 'OP60',
   Station_200_Result: 'OP70 - OP 70A / 70B',
   Station_300_Result: 'OP80/90 - OP 80A / OP 80B / OP 90A / OP 90B',
   Station_9_Result: 'OP100 - DEBURRING',

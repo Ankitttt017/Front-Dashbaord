@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getSummary, getHourly, getShiftWise, getStationWise, getRecords, getDateRange, exportRecords } from '../api';
+import { getSummary, getHourly, getShiftWise, getRecords, getDateRange, exportRecords } from '../api';
 import FilterBar from '../components/FilterBar';
 import KpiCard from '../components/KpiCard';
 import ResultBadge, { normalizeResult as normalizeBadgeResult } from '../components/ResultBadge';
@@ -11,8 +11,6 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ExcelJS from 'exceljs';
 import {
-   STATION_MAP,
-   VISIBLE_STATION_KEYS,
    GROUPED_STATION_COLUMNS,
 } from '../constants/stationMap';
 import {
@@ -55,58 +53,23 @@ const PIE_COLORS = ['var(--ok)', 'var(--ng)', 'var(--warn)'];
 const HEAT_SUB_RESULT_KEYS = ['Station_9_2_Result', 'Station_9_3_Result', 'Station_9_4_Result'];
 const EMPTY_CELL = '-';
 const HEAT_TREATMENT_DURATION_KEY = 'Heat_Treatment_Duration';
-const REPORT_STATION_ORDER = [
-   { id: 'Station_30_Result', label: STATION_MAP.Station_30_Result },
-   { id: 'Station_31_Result', label: STATION_MAP.Station_31_Result },
-   { id: 'Station_32_Result', label: STATION_MAP.Station_32_Result },
-   { id: 'Station_100_1_Result', label: 'OP60A' },
-   { id: 'Station_100_2_Result', label: 'OP60B' },
-   { id: 'Station_200_3_Result', label: 'OP70A' },
-   { id: 'Station_200_4_Result', label: 'OP70B' },
-   { id: 'Station_200_5_Result', label: 'OP70C' },
-   { id: 'Station_300_6_Result', label: 'OP80A / OP90A' },
-   { id: 'Station_300_7_Result', label: 'OP80B / OP90B' },
-   { id: 'Station_300_8_Result', label: 'OP80C / OP90C' },
-   { id: 'Station_9_Result', label: STATION_MAP.Station_9_Result },
-   { id: 'Station_10_Result', label: STATION_MAP.Station_10_Result },
-   { id: 'Station_11_Result', label: STATION_MAP.Station_11_Result },
-   { id: 'Station_12_Result', label: STATION_MAP.Station_12_Result },
-   { id: 'Station_13_Result', label: STATION_MAP.Station_13_Result },
-   { id: 'Station_14_Result', label: STATION_MAP.Station_14_Result },
-   { id: 'Station_15_Result', label: STATION_MAP.Station_15_Result },
-   { id: 'Station_16_Result', label: STATION_MAP.Station_16_Result },
-   { id: 'Station_17_Result', label: STATION_MAP.Station_17_Result },
-   { id: 'Station_18_Result', label: STATION_MAP.Station_18_Result },
-   { id: 'Station_19_Result', label: STATION_MAP.Station_19_Result },
-];
-const REPORT_VISIBLE_STATIONS = [
-   { id: 'report-op30', sourceKey: 'Station_32_Result', label: 'OP30 - FETLING' },
-   { id: 'Station_31_Result', sourceKey: 'Station_31_Result', label: STATION_MAP.Station_31_Result },
-   { id: 'report-op50', sourceKey: 'Station_30_Result', label: 'OP50 - PDI' },
-   ...VISIBLE_STATION_KEYS
-      .filter((key) => !['Station_30_Result', 'Station_31_Result', 'Station_32_Result'].includes(key))
-      .map((key) => ({ id: key, sourceKey: key, label: STATION_MAP[key] || key })),
-];
+const REPORT_STATION_ORDER = MACHINE_OPERATION_CARDS.map((operation) => ({
+   id: operation.id,
+   label: operation.title,
+}));
+const REPORT_VISIBLE_STATIONS = MACHINE_OPERATION_CARDS.map((operation) => ({
+   id: operation.id,
+   sourceKey: operation.id,
+   label: operation.title,
+   sources: operation.sources || [operation.id],
+}));
 const REPORT_GROUPED_STATION_COLUMNS = {
-   ...GROUPED_STATION_COLUMNS,
    Station_31_Result: [
       ...(GROUPED_STATION_COLUMNS.Station_31_Result || []),
       { key: HEAT_TREATMENT_DURATION_KEY, label: 'Duration', parentKey: 'Station_31_Result' },
    ],
-   Station_100_Result: [
-      { key: 'Station_100_1_Result', label: 'OP60A', fallbackKeys: ['Station_100_1_Result', 'Station_100_ST_1_Result'], parentKey: 'Station_100_Result' },
-      { key: 'Station_100_2_Result', label: 'OP60B', fallbackKeys: ['Station_100_2_Result', 'Station_100_ST_2_Result'], parentKey: 'Station_100_Result' },
-   ],
-   Station_200_Result: [
-      { key: 'Station_200_3_Result', label: 'OP70A', fallbackKeys: ['Station_200_3_Result', 'Station_200_ST_3_Result'], parentKey: 'Station_200_Result' },
-      { key: 'Station_200_4_Result', label: 'OP70B', fallbackKeys: ['Station_200_4_Result', 'Station_200_ST_4_Result'], parentKey: 'Station_200_Result' },
-      { key: 'Station_200_5_Result', label: 'OP70C', fallbackKeys: ['Station_200_5_Result', 'Station_200_ST_5_Result'], parentKey: 'Station_200_Result' },
-   ],
-   Station_300_Result: [
-      { key: 'Station_300_6_Result', label: 'OP80A / OP90A', fallbackKeys: ['Station_300_6_Result', 'Station_300_ST_6_Result'], parentKey: 'Station_300_Result' },
-      { key: 'Station_300_7_Result', label: 'OP80B / OP90B', fallbackKeys: ['Station_300_7_Result', 'Station_300_ST_7_Result'], parentKey: 'Station_300_Result' },
-      { key: 'Station_300_8_Result', label: 'OP80C / OP90C', fallbackKeys: ['Station_300_8_Result', 'Station_300_ST_8_Result'], parentKey: 'Station_300_Result' },
-   ],
+   Station_17_Result: GROUPED_STATION_COLUMNS.Station_17_Result || [],
+   Station_18_Result: GROUPED_STATION_COLUMNS.Station_18_Result || [],
 };
 
 const PieTooltip = ({ active, payload }) => {
@@ -228,20 +191,14 @@ const getExportHeaderLabel = (key) => {
    const directStation = REPORT_VISIBLE_STATIONS.find((station) => station.sourceKey === key);
    if (directStation) return directStation.label;
 
-   for (const [parentKey, columns] of Object.entries(REPORT_GROUPED_STATION_COLUMNS)) {
+   for (const [, columns] of Object.entries(REPORT_GROUPED_STATION_COLUMNS)) {
       const match = columns.find((column) => column.key === key);
       if (match) {
-         if (['Station_100_Result', 'Station_200_Result', 'Station_300_Result'].includes(parentKey)) {
-            return match.label;
-         }
-         const parentLabel = REPORT_VISIBLE_STATIONS.find((station) => station.sourceKey === parentKey)?.label
-            || STATION_MAP[parentKey]
-            || parentKey;
-         return `${parentLabel} - ${match.label}`;
+         return match.label;
       }
    }
 
-   return STATION_MAP[key] || key;
+   return key;
 };
 
 const REPORT_PAGE_SIZE = 50;
@@ -441,6 +398,10 @@ const ReportPage = () => {
          };
       });
    }, [appliedMachine, data.stations]);
+   const stationChartHeight = useMemo(
+      () => Math.max(420, orderedStationData.length * 42),
+      [orderedStationData.length],
+   );
 
    useEffect(() => {
       getDateRange().then(res => {
@@ -488,8 +449,9 @@ const ReportPage = () => {
             const sh = await getShiftWise(q);
             setData(prev => ({ ...prev, shifts: sh }));
          } else if (tab === 'station') {
-            const st = await getStationWise(q);
-            setData(prev => ({ ...prev, stations: st }));
+            const exportPayload = await exportRecords(getMachineScopedApiParams(p, page));
+            const machineRecords = Array.isArray(exportPayload?.records) ? exportPayload.records : [];
+            setData((prev) => ({ ...prev, stations: buildMachineScopedStationData(machineRecords, null) }));
          } else if (tab === 'hourly') {
             const hr = await getHourly(q);
             setData(prev => ({ ...prev, hourly: hr }));
@@ -638,7 +600,7 @@ const ReportPage = () => {
          } else {
             setExportNotice({
                title: 'Export Notice',
-               message: "Excel export is available from the 'By Machine' and 'All Records' tabs only.",
+               message: "Excel export is available from the 'All Records' tab only.",
             });
          }
       } catch (e) { console.error(e); }
@@ -824,7 +786,7 @@ const ReportPage = () => {
          } else {
             setExportNotice({
                title: 'Export Notice',
-               message: "PDF export is available from the 'By Machine' and 'All Records' tabs only.",
+               message: "PDF export is available from the 'All Records' tab only.",
             });
          }
       } catch (e) {
@@ -837,7 +799,6 @@ const ReportPage = () => {
       { id: 'shift', label: 'By Shift' },
       { id: 'station', label: 'By Station' },
       { id: 'hourly', label: 'Hourly' },
-      { id: 'machine', label: 'By Machine' },
       { id: 'records', label: 'All Records' },
    ];
 
@@ -866,6 +827,16 @@ const ReportPage = () => {
          return row[column.parentKey];
       }
 
+      return EMPTY_CELL;
+   };
+
+   const getStationValue = (row, station) => {
+      const candidateKeys = [station.sourceKey, ...(station.sources || []).filter((key) => key !== station.sourceKey)];
+      for (const candidateKey of candidateKeys) {
+         if (row[candidateKey] !== null && row[candidateKey] !== undefined && String(row[candidateKey]).trim() !== '') {
+            return row[candidateKey];
+         }
+      }
       return EMPTY_CELL;
    };
 
@@ -1012,18 +983,22 @@ const ReportPage = () => {
 
             {activeTab === 'station' && (
                <div className="space-y-5 animate-in slide-in-from-bottom-2 duration-300">
-                  <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 sm:p-5 h-[420px] sm:h-[500px] flex flex-col hover:border-[var(--border-light)] transition-colors">
-                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={orderedStationData} margin={{ top: 5, right: 30, left: 30, bottom: 0 }} layout="vertical">
-                           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-                           <XAxis type="number" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} />
-                           <YAxis dataKey="id" type="category" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} width={220} tickFormatter={(v) => orderedStationData.find((item) => item.id === v)?.station || STATION_MAP[v] || v} />
-                           <Tooltip content={<BarTooltip />} />
-                           <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingBottom: '10px' }} />
-                           <Bar dataKey="ok" name="OK" fill="var(--ok)" stackId="station" radius={[0, 0, 0, 0]} barSize={16} />
-                           <Bar dataKey="ng" name="NG" fill="var(--ng)" stackId="station" radius={[0, 4, 4, 0]} barSize={16} />
-                        </BarChart>
-                     </ResponsiveContainer>
+                  <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 sm:p-5 hover:border-[var(--border-light)] transition-colors">
+                     <div className="max-h-[70vh] overflow-auto custom-scrollbar">
+                        <div style={{ height: `${stationChartHeight}px`, minWidth: '980px' }}>
+                           <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={orderedStationData} margin={{ top: 5, right: 30, left: 30, bottom: 0 }} layout="vertical" barCategoryGap={10}>
+                                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                                 <XAxis type="number" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} />
+                                 <YAxis dataKey="id" type="category" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} width={240} interval={0} tickFormatter={(v) => orderedStationData.find((item) => item.id === v)?.station || v} />
+                                 <Tooltip content={<BarTooltip />} />
+                                 <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingBottom: '10px' }} />
+                                 <Bar dataKey="ok" name="OK" fill="var(--ok)" stackId="station" radius={[0, 0, 0, 0]} barSize={16} />
+                                 <Bar dataKey="ng" name="NG" fill="var(--ng)" stackId="station" radius={[0, 4, 4, 0]} barSize={16} />
+                              </BarChart>
+                           </ResponsiveContainer>
+                        </div>
+                     </div>
                   </div>
                   <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl overflow-x-auto hover:border-[var(--border-light)] transition-colors">
                      <table className="report-table min-w-[600px]">
@@ -1230,7 +1205,7 @@ const ReportPage = () => {
                                          if (!groupedColumns) {
                                             return (
                                                <td key={station.id} className="p-2.5 align-top">
-                                                <TableResultCell value={r[station.sourceKey]} />
+                                                <TableResultCell value={getStationValue(r, station)} />
                                                </td>
                                             );
                                          }

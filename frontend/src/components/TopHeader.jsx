@@ -26,7 +26,7 @@ const TopHeader = ({ onMenuClick, onToggleCollapse, isCollapsed, isMobile, activ
 
       <div className="absolute left-1/2 -translate-x-1/2 hidden md:block pointer-events-none">
         <h1 className="text-[24px] font-bold text-[var(--text-main)] tracking-[0.02em] leading-none">
-          BMW GEN-6 REAR DASHBOARD (BAWAL)
+          BMW GEN-6 FRONT DASHBOARD (BAWAL)
         </h1>
       </div>
 
