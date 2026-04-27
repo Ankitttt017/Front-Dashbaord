@@ -14,16 +14,19 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 const BIND_HOST = process.env.BIND_HOST || '0.0.0.0';
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+const corsOrigin = CORS_ORIGIN === '*'
+  ? '*'
+  : CORS_ORIGIN.split(',').map(origin => origin.trim()).filter(Boolean);
 const AUTO_PACK_CRON = process.env.AUTOPACK_CRON || '*/30 * * * * *';
 const AUTO_PACK_TIMEZONE = process.env.CRON_TIMEZONE || 'Asia/Kolkata';
 const AUTO_PACK_BATCH_LIMIT = Number(process.env.AUTOPACK_BATCH_LIMIT) || 100;
 const DB_CONNECT_TIMEOUT_MS = Number(process.env.DB_CONNECT_TIMEOUT_MS) || 5000;
 
 const io = new Server(server, {
-  cors: { origin: CORS_ORIGIN },
+  cors: { origin: corsOrigin },
 });
 
-app.use(cors({ origin: CORS_ORIGIN }));
+app.use(cors({ origin: corsOrigin }));
 app.use(express.json({ limit: '2mb' }));
 app.set('io', io);
 app.set('dbStatus', {

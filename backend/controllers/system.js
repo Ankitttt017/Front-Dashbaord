@@ -1,6 +1,6 @@
 async function getStatus(req, res) {
   const dbStatus = req.app.get('dbStatus') || {};
-  const dbDisplayLabel = process.env.DB_DISPLAY_LABEL || process.env.DB_NAME || 'database';
+  const dbDisplayLabel = process.env.DB_DISPLAY_LABEL || process.env.DB_NAME || process.env.DB_DATABASE || 'database';
   const apiUrl = process.env.API_URL || `${req.protocol}://${req.get('host')}`;
 
   return res.json({

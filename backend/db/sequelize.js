@@ -6,11 +6,11 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 /* ─── Parse env vars ─── */
 const rawServer   = process.env.DB_SERVER || 'localhost';
 const DB_PORT     = Number(process.env.DB_PORT) || 1433;
-const DB_NAME     = process.env.DB_NAME || 'database';
+const DB_NAME     = process.env.DB_NAME || process.env.DB_DATABASE || 'database';
 const DB_USER     = process.env.DB_USER || '';
-const DB_PASS     = process.env.DB_PASS || '';
+const DB_PASS     = process.env.DB_PASS || process.env.DB_PASSWORD || '';
 const DB_ENCRYPT  = (process.env.DB_ENCRYPT || 'false') === 'true';
-const DB_TRUST    = (process.env.DB_TRUST_CERT || 'true') === 'true';
+const DB_TRUST    = (process.env.DB_TRUST_CERT || process.env.DB_TRUST_SERVER_CERTIFICATE || 'true') === 'true';
 
 /* ─── Pool settings ─── */
 const POOL_MAX     = Number(process.env.DB_POOL_MAX) || 10;

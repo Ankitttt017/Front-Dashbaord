@@ -14,12 +14,17 @@ const LoginPage = () => {
     setError('');
     setLoading(true);
     try {
-      const res = await login({ username, password });
+      const res = await login({
+        username: username.trim(),
+        password: password.trim(),
+      });
       localStorage.setItem('tr_token', res.token);
       localStorage.setItem('tr_user', JSON.stringify(res.user));
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+      const status = err.response?.status;
+      const serverMessage = err.response?.data?.message;
+      setError(serverMessage || (status ? `Login failed (${status})` : `Login failed: ${err.message}`));
     } finally {
       setLoading(false);
     }

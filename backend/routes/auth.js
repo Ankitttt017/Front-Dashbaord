@@ -17,12 +17,23 @@ const AUTH_USERS = {
   },
 };
 
-router.post('/login', (req, res) => {
-  const { username, password } = req.body;
+const normalizeUsername = value => String(value || '').trim().toLowerCase();
+const adminAliases = [
+  AUTH_USERS.admin.username,
+  'admin',
+  'desktop-j9f8crk\\admin',
+].map(normalizeUsername);
 
-  if (username === AUTH_USERS.admin.username && password === AUTH_USERS.admin.password) {
+router.post('/login', (req, res) => {
+  const username = String(req.body?.username || '').trim();
+  const password = String(req.body?.password || '').trim();
+  const normalizedUsername = normalizeUsername(username);
+  const adminUsername = String(AUTH_USERS.admin.username || '').trim();
+  const operatorUsername = String(AUTH_USERS.operator.username || '').trim();
+
+  if (adminAliases.includes(normalizedUsername) && password === AUTH_USERS.admin.password) {
     const token = jwt.sign(
-      { username, role: AUTH_USERS.admin.role },
+      { username: adminUsername, role: AUTH_USERS.admin.role },
       process.env.JWT_SECRET || 'traceability_secret_2024',
       { expiresIn: '8h' }
     );
@@ -35,9 +46,9 @@ router.post('/login', (req, res) => {
     });
   }
 
-  if (username === AUTH_USERS.operator.username && password === AUTH_USERS.operator.password) {
+  if (normalizedUsername === operatorUsername.toLowerCase() && password === AUTH_USERS.operator.password) {
     const token = jwt.sign(
-      { username, role: AUTH_USERS.operator.role },
+      { username: operatorUsername, role: AUTH_USERS.operator.role },
       process.env.JWT_SECRET || 'traceability_secret_2024',
       { expiresIn: '8h' }
     );
